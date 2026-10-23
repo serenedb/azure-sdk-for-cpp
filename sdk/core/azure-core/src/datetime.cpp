@@ -115,6 +115,39 @@ DateTime GetMaxDateTime()
 #endif
 }
 
+DateTime GetMinDateTime()
+{
+  using Rep = std::int64_t;
+
+  using CommonDuration = std::chrono::duration<
+      Rep,
+      std::conditional<
+          std::ratio_greater<
+              DateTime::clock::duration::period,
+              std::chrono::system_clock::duration::period>::value,
+          DateTime::clock::duration::period,
+          std::chrono::system_clock::duration::period>::type>;
+
+  std::chrono::system_clock::duration const scSystemClockMinDuration
+      = (std::chrono::system_clock::time_point::min)().time_since_epoch();
+
+  Rep const commonSystemClockMin
+      = std::chrono::duration_cast<CommonDuration>(scSystemClockMinDuration).count();
+
+  Rep const commonDtClockMin
+      = std::chrono::duration_cast<CommonDuration>((DateTime::clock::duration::min)()).count();
+
+  if (commonSystemClockMin <= commonDtClockMin)
+  {
+    return DateTime(DateTime::time_point((DateTime::clock::duration::min)()));
+  }
+
+  return DateTime(
+      DateTime::time_point(
+          GetSystemClockEpoch().time_since_epoch()
+          + std::chrono::duration_cast<DateTime::clock::duration>(scSystemClockMinDuration)));
+}
+
 template <typename T>
 void ValidateDateElementRange(
     T value,
@@ -488,7 +521,7 @@ DateTime::DateTime(std::chrono::system_clock::time_point const& systemTime)
 
 DateTime::operator std::chrono::system_clock::time_point() const
 {
-  static DateTime const SystemClockMin((std::chrono::system_clock::time_point::min)());
+  static DateTime const SystemClockMin(GetMinDateTime());
   static DateTime const SystemClockMax(GetMaxDateTime());
 
   auto outOfRange = 0;
